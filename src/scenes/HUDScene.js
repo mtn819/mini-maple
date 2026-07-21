@@ -44,11 +44,11 @@ window.G = window.G || {};
     }
 
     refreshHp(hp, maxHp) {
-      this.hpBarFill.width = BAR_WIDTH * Phaser.Math.Clamp(hp / maxHp, 0, 1);
+      this.hpBarFill.width = G.HUDLogic.computeBarWidth(hp, maxHp, BAR_WIDTH);
     }
 
     refreshXp(xp, xpNeeded) {
-      this.xpBarFill.width = BAR_WIDTH * Phaser.Math.Clamp(xp / xpNeeded, 0, 1);
+      this.xpBarFill.width = G.HUDLogic.computeBarWidth(xp, xpNeeded, BAR_WIDTH);
     }
 
     onLevelUp(level) {
