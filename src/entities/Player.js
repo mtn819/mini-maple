@@ -35,24 +35,22 @@ window.G = window.G || {};
       const onGround = this.body.blocked.down || this.body.touching.down;
 
       if (!this.isAttacking) {
-        if (input.isLeftDown()) {
-          this.setVelocityX(-this.moveSpeed);
-          this.facing = -1;
-          this.setFlipX(true);
-        } else if (input.isRightDown()) {
-          this.setVelocityX(this.moveSpeed);
-          this.facing = 1;
-          this.setFlipX(false);
-        } else {
-          this.setVelocityX(0);
-        }
+        const move = G.PlayerLogic.resolveMovement({
+          left: input.isLeftDown(),
+          right: input.isRightDown(),
+          moveSpeed: this.moveSpeed,
+          currentFacing: this.facing,
+        });
+        this.setVelocityX(move.vx);
+        this.facing = move.facing;
+        this.setFlipX(move.flipX);
 
         if (input.isJumpJustDown() && onGround) {
           this.setVelocityY(this.jumpVelocity);
         }
       }
 
-      if (input.isAttackJustDown() && time > this.lastAttackTime + this.attackCooldown) {
+      if (input.isAttackJustDown() && G.PlayerLogic.isAttackReady(time, this.lastAttackTime, this.attackCooldown)) {
         this.lastAttackTime = time;
         this.performAttack(time);
       }
@@ -61,23 +59,29 @@ window.G = window.G || {};
     }
 
     updateAnimation(onGround) {
-      if (this.isAttacking || !onGround) return;
-
-      if (Math.abs(this.body.velocity.x) > 5) {
-        this.anims.play(`${this.textureKey}-walk`, true);
-      } else {
-        this.anims.play(`${this.textureKey}-idle`, true);
-      }
+      const anim = G.PlayerLogic.nextAnimation({
+        isAttacking: this.isAttacking,
+        onGround,
+        vx: this.body.velocity.x,
+      });
+      if (anim) this.anims.play(`${this.textureKey}-${anim}`, true);
     }
 
     // Overridden by Warrior/Mage.
     performAttack(time) {}
 
     takeDamage(amount, time) {
-      if (this.hp <= 0 || time < this.invulnerableUntil) return;
+      const result = G.PlayerLogic.applyDamage({
+        hp: this.hp,
+        invulnerableUntil: this.invulnerableUntil,
+        time,
+        amount,
+        hurtInvulnMs: G.Constants.HURT_INVULN_MS,
+      });
+      if (!result.applied) return;
 
-      this.hp = Math.max(0, this.hp - amount);
-      this.invulnerableUntil = time + G.Constants.HURT_INVULN_MS;
+      this.hp = result.hp;
+      this.invulnerableUntil = result.invulnerableUntil;
       this.emit('hpchanged', this.hp, this.maxHp);
 
       this.setTintFill(0xff5555);
@@ -85,7 +89,7 @@ window.G = window.G || {};
         if (this.active) this.clearTint();
       });
 
-      if (this.hp <= 0) {
+      if (result.died) {
         this.emit('died');
       }
     }
