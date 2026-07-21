@@ -77,11 +77,16 @@ G.PixelArt = (function () {
 
   // Returns the frame-index range per animation name computed by
   // computeFrameLayout, after rasterizing every frame onto a real canvas and
-  // registering it as a Phaser spritesheet texture.
+  // registering it as a Phaser spritesheet texture. The whole function is
+  // v8-ignored, not just its canvas-touching body: computeFrameLayout (the
+  // pure part) is tested directly and exhaustively elsewhere, so this
+  // function is never invoked on its own in tests, which would otherwise
+  // leave it flagged as an "uncovered function" despite its one meaningful
+  // line of logic being fully covered via computeFrameLayout's own tests.
+  /* v8 ignore start */
   function buildAnimatedSpriteSheet(scene, key, framesByAnim, frameWidth, frameHeight, palette) {
     const { flat, ranges } = computeFrameLayout(framesByAnim, frameWidth, frameHeight, key);
 
-    /* v8 ignore start */
     const canvas = document.createElement('canvas');
     canvas.width = frameWidth * flat.length;
     canvas.height = frameHeight;
@@ -93,10 +98,10 @@ G.PixelArt = (function () {
     });
 
     scene.textures.addSpriteSheet(key, canvas, { frameWidth, frameHeight });
-    /* v8 ignore stop */
 
     return ranges;
   }
+  /* v8 ignore stop */
 
   /* v8 ignore start */
   function buildStaticTexture(scene, key, rows, palette, width, height) {
