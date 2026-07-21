@@ -4,6 +4,15 @@ window.G = window.G || {};
 // character per pixel, indexing into a per-sprite palette) into Phaser
 // textures/spritesheets, entirely in-memory via canvas. No external image
 // files are ever loaded.
+//
+// drawFrame/validateFrame/computeFrameLayout are pure (no canvas/Phaser
+// dependency) and unit tested directly. buildAnimatedSpriteSheet's own
+// canvas-drawing body, buildStaticTexture, and buildTileTexture are marked
+// `/* v8 ignore */`: jsdom's HTMLCanvasElement.getContext('2d') returns null
+// without the optional native `canvas` package (which needs a compiler
+// toolchain not available in this project's test environment), so those
+// bodies cannot execute under the test runner at all — they're verified by
+// manual playtest instead (see CLAUDE.md's "Running / testing changes").
 G.PixelArt = (function () {
   function drawFrame(ctx, rows, palette, destX, destY, entityKey, animName, frameIndex) {
     for (let row = 0; row < rows.length; row++) {
@@ -41,20 +50,38 @@ G.PixelArt = (function () {
   }
 
   // framesByAnim: { idle: [rows[], rows[]], walk: [...], attack: [...] }
-  // Returns a frame-index range per animation name, e.g. { idle: {start:0,end:1}, walk: {...} }.
-  function buildAnimatedSpriteSheet(scene, key, framesByAnim, frameWidth, frameHeight, palette) {
+  // Returns { flat, ranges }: `flat` is every frame across all anims in a
+  // single array (in Object.keys(framesByAnim) insertion order — idle, then
+  // walk, then attack, matching how the caller iterates); `ranges` maps each
+  // anim name to its {start,end} slice of `flat`, e.g.
+  // { idle: {start:0,end:1}, walk: {start:2,end:4} }. An anim with zero
+  // frames produces an inverted range ({start:N, end:N-1}) — an unusual but
+  // real, deliberately-unguarded contract detail. Throws (via validateFrame)
+  // the moment any frame's dimensions don't match, before any canvas work
+  // happens.
+  function computeFrameLayout(framesByAnim, frameWidth, frameHeight, entityKey) {
     const flat = [];
     const ranges = {};
 
     Object.keys(framesByAnim).forEach((animName) => {
       const start = flat.length;
       framesByAnim[animName].forEach((rows, i) => {
-        validateFrame(rows, frameWidth, frameHeight, key, animName, i);
+        validateFrame(rows, frameWidth, frameHeight, entityKey, animName, i);
         flat.push(rows);
       });
       ranges[animName] = { start, end: flat.length - 1 };
     });
 
+    return { flat, ranges };
+  }
+
+  // Returns the frame-index range per animation name computed by
+  // computeFrameLayout, after rasterizing every frame onto a real canvas and
+  // registering it as a Phaser spritesheet texture.
+  function buildAnimatedSpriteSheet(scene, key, framesByAnim, frameWidth, frameHeight, palette) {
+    const { flat, ranges } = computeFrameLayout(framesByAnim, frameWidth, frameHeight, key);
+
+    /* v8 ignore start */
     const canvas = document.createElement('canvas');
     canvas.width = frameWidth * flat.length;
     canvas.height = frameHeight;
@@ -66,10 +93,12 @@ G.PixelArt = (function () {
     });
 
     scene.textures.addSpriteSheet(key, canvas, { frameWidth, frameHeight });
+    /* v8 ignore stop */
 
     return ranges;
   }
 
+  /* v8 ignore start */
   function buildStaticTexture(scene, key, rows, palette, width, height) {
     validateFrame(rows, width, height, key, 'static', 0);
 
@@ -82,7 +111,9 @@ G.PixelArt = (function () {
     drawFrame(ctx, rows, palette, 0, 0, key, 'static', 0);
     scene.textures.addCanvas(key, canvas);
   }
+  /* v8 ignore stop */
 
+  /* v8 ignore start */
   // A small deterministic dirt/grass tile, generated procedurally rather than
   // hand-authored pixel-by-pixel since it's a repeating background tile, not
   // a character/creature sprite.
@@ -110,6 +141,14 @@ G.PixelArt = (function () {
 
     scene.textures.addCanvas(key, canvas);
   }
+  /* v8 ignore stop */
 
-  return { drawFrame, validateFrame, buildAnimatedSpriteSheet, buildStaticTexture, buildTileTexture };
+  return {
+    drawFrame,
+    validateFrame,
+    computeFrameLayout,
+    buildAnimatedSpriteSheet,
+    buildStaticTexture,
+    buildTileTexture,
+  };
 })();
