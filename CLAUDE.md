@@ -22,6 +22,26 @@ There is nothing to build or install. To see a change:
 
 There is no lint or test command configured — verify changes by loading the page and playing.
 
+## Workflow: commit, push, and keep this file current
+
+This project's only record of progress is git history — there is no issue tracker, changelog, or
+design doc. To make sure nothing is ever lost between sessions:
+
+- **Commit and push after every successful change**, not just at the end of a session. "Successful"
+  means the page loads without console errors and the change was verified in-browser (see "Running /
+  testing changes" above). Don't leave work uncommitted, and don't let unrelated changes pile up into
+  one commit — commit at natural checkpoints with a message that describes what changed and why (never
+  a generic "update files").
+- Repo: https://github.com/mtn819/mini-maple (public, default branch `master`). Push straight to
+  `master` — this is a solo project with no branch/PR workflow.
+- **Update this file in the same commit as the code change** whenever the change affects something
+  documented here: a new top-level `src/` area, a changed scene flow, a new shared system, a new
+  script-load-order dependency, or a scope change to the intentionally-minimal feature set. Treat
+  CLAUDE.md as part of the change, not a follow-up task.
+- Windows/PowerShell note: `git` and `gh` are installed on this machine but a freshly spawned shell
+  process may not have them on `PATH`. If a bare `git`/`gh` call fails with "not recognized", prepend:
+  `$env:PATH = "C:\Program Files\Git\cmd;C:\Program Files\GitHub CLI\;" + $env:PATH`.
+
 ## Architecture
 
 **Global namespace, no modules.** Every file does `window.G = window.G || {};` then wraps its content
