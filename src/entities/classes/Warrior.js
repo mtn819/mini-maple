@@ -35,7 +35,7 @@ window.G = window.G || {};
     }
 
     positionHitbox() {
-      const offset = 18 * this.facing;
+      const offset = G.CombatLogic.scaleByDirection(this.facing, 18);
       this.meleeHitbox.setPosition(this.x + offset, this.y);
     }
 

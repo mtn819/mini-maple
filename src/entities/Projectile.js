@@ -10,7 +10,7 @@ window.G = window.G || {};
       this.setScale(G.Constants.SPRITE_SCALE);
       this.damage = damage;
       this.body.setAllowGravity(false);
-      this.setVelocityX(direction * speed);
+      this.setVelocityX(G.CombatLogic.scaleByDirection(direction, speed));
 
       scene.time.delayedCall(800, () => {
         if (this.active) this.destroy();

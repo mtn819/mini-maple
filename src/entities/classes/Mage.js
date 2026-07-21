@@ -19,7 +19,7 @@ window.G = window.G || {};
       this.setVelocityX(0);
       this.anims.play(`${this.textureKey}-attack`, true);
 
-      const offset = 16 * this.facing;
+      const offset = G.CombatLogic.scaleByDirection(this.facing, 16);
       const projectile = new G.Projectile(
         this.scene,
         this.x + offset,
