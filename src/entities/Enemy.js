@@ -1,11 +1,7 @@
 window.G = window.G || {};
 
 (function () {
-  const STATE = {
-    PATROL: 'PATROL',
-    CHASE: 'CHASE',
-    DEAD: 'DEAD',
-  };
+  const STATE = G.EnemyLogic.STATE;
 
   class Enemy extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y, textureKey, stats) {
@@ -39,39 +35,44 @@ window.G = window.G || {};
       if (this.state === STATE.DEAD) return;
 
       const distance = Math.abs(player.x - this.x);
-
-      if (this.state === STATE.PATROL && distance < this.aggroRange && player.hp > 0) {
-        this.state = STATE.CHASE;
-      } else if (this.state === STATE.CHASE && (distance > this.aggroRange * 1.5 || player.hp <= 0)) {
-        this.state = STATE.PATROL;
-      }
+      this.state = G.EnemyLogic.nextState({
+        state: this.state,
+        distance,
+        aggroRange: this.aggroRange,
+        playerHp: player.hp,
+      });
 
       if (this.state === STATE.CHASE) {
-        const dir = player.x < this.x ? -1 : 1;
+        const dir = G.EnemyLogic.computeChaseDirection(player.x, this.x);
         this.setVelocityX(dir * this.moveSpeed);
         this.setFlipX(dir < 0);
       } else {
-        if (this.x <= this.patrolMinX) this.patrolDir = 1;
-        if (this.x >= this.patrolMaxX) this.patrolDir = -1;
+        this.patrolDir = G.EnemyLogic.resolvePatrolDir({
+          x: this.x,
+          patrolMinX: this.patrolMinX,
+          patrolMaxX: this.patrolMaxX,
+          patrolDir: this.patrolDir,
+        });
         this.setVelocityX(this.patrolDir * this.moveSpeed * 0.6);
         this.setFlipX(this.patrolDir < 0);
       }
 
-      const moving = Math.abs(this.body.velocity.x) > 5;
-      this.anims.play(`${this.textureKey}-${moving ? 'walk' : 'idle'}`, true);
+      const anim = G.EnemyLogic.nextAnimation(this.body.velocity.x);
+      this.anims.play(`${this.textureKey}-${anim}`, true);
     }
 
     takeDamage(amount) {
       if (this.state === STATE.DEAD) return;
 
-      this.hp = Math.max(0, this.hp - amount);
+      const result = G.EnemyLogic.applyDamage({ hp: this.hp, amount });
+      this.hp = result.hp;
 
       this.setTintFill(0xffffff);
       this.scene.time.delayedCall(80, () => {
         if (this.active) this.clearTint();
       });
 
-      if (this.hp <= 0) {
+      if (result.died) {
         this.die();
       }
     }
